@@ -189,7 +189,8 @@ class WindowPoseDataLayer : public BasePrefetchingDataLayer<Dtype> {
       const vector<Blob<Dtype>*>& top);
     virtual inline const char* type() const { return "WindowPoseData"; }
   virtual inline int ExactNumBottomBlobs() const { return 0; }
-  virtual inline int ExactNumTopBlobs() const { return 8; }
+  virtual inline int MinTopBlobs() const { return 8; }
+  virtual inline int MaxTopBlobs() const { return 9; }
 
  protected:
   virtual unsigned int PrefetchRand();
@@ -202,8 +203,9 @@ class WindowPoseDataLayer : public BasePrefetchingDataLayer<Dtype> {
   Blob<Dtype> prefetch_e1coarse_;
   Blob<Dtype> prefetch_e2coarse_;
   Blob<Dtype> prefetch_e3coarse_;
+  Blob<Dtype> prefetch_quat_;
   vector<std::pair<std::string, vector<int> > > image_database_;
-  enum WindowField { IMAGE_INDEX, LABEL, OVERLAP, X1, Y1, X2, Y2, E1, E2, E3, E1C, E2C, E3C, E1M, E2M, E3M, E1CM, E2CM, E3CM, NUM };
+  enum WindowField { IMAGE_INDEX, LABEL, OVERLAP, X1, Y1, X2, Y2, E1, E2, E3, E1C, E2C, E3C, E1M, E2M, E3M, E1CM, E2CM, E3CM, Q0, Q1, Q2, Q3, Q0M, Q1M, Q2M, Q3M, NUM };
   vector<vector<float> > fg_windows_;
   vector<vector<float> > bg_windows_;
   Blob<Dtype> data_mean_;

@@ -119,8 +119,8 @@ void WindowPoseDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
     for (int i = 0; i < num_windows; ++i) {
       int label, x1, y1, x2, y2, e1, e2, e3, e1c, e2c, e3c;
       int e1m, e2m, e3m, e1cm, e2cm, e3cm;
-      float overlap;
-      infile >> label >> overlap >> x1 >> y1 >> x2 >> y2 >> e1 >> e1m >> e2 >> e2m >> e3 >> e3m >> e1c >> e1cm >> e2c >> e2cm >> e3c >> e3cm;
+      float overlap, q0, q1, q2, q3, q0m, q1m, q2m, q3m;
+      infile >> label >> overlap >> x1 >> y1 >> x2 >> y2 >> e1 >> e1m >> e2 >> e2m >> e3 >> e3m >> e1c >> e1cm >> e2c >> e2cm >> e3c >> e3cm >> q0 >> q1 >> q2 >> q3 >> q0m >> q1m >> q2m >> q3m;
 
       vector<float> window(WindowPoseDataLayer::NUM);
       window[WindowPoseDataLayer::IMAGE_INDEX] = image_index;
@@ -142,6 +142,16 @@ void WindowPoseDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
       window[WindowPoseDataLayer::E1CM] = e1cm;
       window[WindowPoseDataLayer::E2CM] = e2cm;
       window[WindowPoseDataLayer::E3CM] = e3cm;
+      
+      window[WindowPoseDataLayer::Q0] = q0;
+      window[WindowPoseDataLayer::Q1] = q1;
+	  window[WindowPoseDataLayer::Q2] = q2;
+      window[WindowPoseDataLayer::Q3] = q3;
+      
+      window[WindowPoseDataLayer::Q0M] = q0m;
+      window[WindowPoseDataLayer::Q1M] = q1m;
+	  window[WindowPoseDataLayer::Q2M] = q2m;
+      window[WindowPoseDataLayer::Q3M] = q3m;      
 
       // add window to foreground list or background list
       if (overlap >= fg_threshold) {
@@ -201,6 +211,11 @@ void WindowPoseDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   top[5]->Reshape(batch_size, 1, 1, 1);
   top[6]->Reshape(batch_size, 1, 1, 1);
   top[7]->Reshape(batch_size, 1, 1, 1);
+  
+  if(top.size() > 8){ //emits quaternion
+  	top[8]->Reshape(batch_size, 4, 1, 1);
+  }
+  
   this->prefetch_label_.Reshape(batch_size, 1, 1, 1);
   this->prefetch_e1_.Reshape(batch_size, 1, 1, 1);
   this->prefetch_e2_.Reshape(batch_size, 1, 1, 1);
@@ -208,6 +223,7 @@ void WindowPoseDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   this->prefetch_e1coarse_.Reshape(batch_size, 1, 1, 1);
   this->prefetch_e2coarse_.Reshape(batch_size, 1, 1, 1);
   this->prefetch_e3coarse_.Reshape(batch_size, 1, 1, 1);
+  this->prefetch_quat_.Reshape(batch_size, 4, 1, 1);
 
   // data mean
   has_mean_file_ = this->transform_param_.has_mean_file();
@@ -264,6 +280,7 @@ void WindowPoseDataLayer<Dtype>::InternalThreadEntry() {
   Dtype* top_e1c = this->prefetch_e1coarse_.mutable_cpu_data();
   Dtype* top_e2c = this->prefetch_e2coarse_.mutable_cpu_data();
   Dtype* top_e3c = this->prefetch_e3coarse_.mutable_cpu_data();
+  Dtype* top_quat = this->prefetch_quat_.mutable_cpu_data();
 
   const Dtype scale = this->layer_param_.window_data_param().scale();
   const int batch_size = this->layer_param_.window_data_param().batch_size();
@@ -455,14 +472,22 @@ void WindowPoseDataLayer<Dtype>::InternalThreadEntry() {
         top_e1c[item_id] = window[WindowPoseDataLayer<Dtype>::E1CM];
         top_e2c[item_id] = window[WindowPoseDataLayer<Dtype>::E2CM];
         top_e3c[item_id] = window[WindowPoseDataLayer<Dtype>::E3CM];
+        top_quat[item_id*4 + 0] = window[WindowPoseDataLayer<Dtype>::Q0M];
+        top_quat[item_id*4 + 1] = window[WindowPoseDataLayer<Dtype>::Q1M];
+        top_quat[item_id*4 + 2] = window[WindowPoseDataLayer<Dtype>::Q2M];
+        top_quat[item_id*4 + 3] = window[WindowPoseDataLayer<Dtype>::Q3M];                        
       }
       else{
-          top_e1[item_id] = window[WindowPoseDataLayer<Dtype>::E1];
-          top_e2[item_id] = window[WindowPoseDataLayer<Dtype>::E2];
-          top_e3[item_id] = window[WindowPoseDataLayer<Dtype>::E3];
-          top_e1c[item_id] = window[WindowPoseDataLayer<Dtype>::E1C];
-          top_e2c[item_id] = window[WindowPoseDataLayer<Dtype>::E2C];
-          top_e3c[item_id] = window[WindowPoseDataLayer<Dtype>::E3C];
+        top_e1[item_id] = window[WindowPoseDataLayer<Dtype>::E1];
+        top_e2[item_id] = window[WindowPoseDataLayer<Dtype>::E2];
+        top_e3[item_id] = window[WindowPoseDataLayer<Dtype>::E3];
+        top_e1c[item_id] = window[WindowPoseDataLayer<Dtype>::E1C];
+        top_e2c[item_id] = window[WindowPoseDataLayer<Dtype>::E2C];
+        top_e3c[item_id] = window[WindowPoseDataLayer<Dtype>::E3C];
+    	top_quat[item_id*4 + 0] = window[WindowPoseDataLayer<Dtype>::Q0];
+        top_quat[item_id*4 + 1] = window[WindowPoseDataLayer<Dtype>::Q1];
+        top_quat[item_id*4 + 2] = window[WindowPoseDataLayer<Dtype>::Q2];
+        top_quat[item_id*4 + 3] = window[WindowPoseDataLayer<Dtype>::Q3]; 
       }
 
       #if 0
@@ -530,6 +555,11 @@ void WindowPoseDataLayer<Dtype>::Forward_cpu(
             top[6]->mutable_cpu_data());
   caffe_copy(this->prefetch_e3coarse_.count(), this->prefetch_e3coarse_.cpu_data(),
             top[7]->mutable_cpu_data());
+  if(top.size() > 8){
+  	caffe_copy(this->prefetch_quat_.count(), this->prefetch_quat_.cpu_data(),
+              top[8]->mutable_cpu_data());
+  }
+  
   // Start a new prefetch thread
   DLOG(INFO) << "Prefetch copied";
   DLOG(INFO) << "CreatePrefetchThread";

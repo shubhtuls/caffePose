@@ -27,6 +27,10 @@ void WindowPoseDataLayer<Dtype>::Forward_gpu(
       top[6]->mutable_gpu_data());
   caffe_copy(this->prefetch_e3coarse_.count(), this->prefetch_e3coarse_.cpu_data(),
       top[7]->mutable_gpu_data());
+  if(top.size() > 8){
+  	caffe_copy(this->prefetch_quat_.count(), this->prefetch_quat_.cpu_data(),
+              top[8]->mutable_gpu_data());
+  }
   // Start a new prefetch thread
   this->CreatePrefetchThread();
 }
